@@ -1,4 +1,3 @@
-// content.js
 console.log('🛸 三体UFO吸引機: 高度文明モード');
 
 let ufo = null;
@@ -59,7 +58,7 @@ function startSucking() {
 
   if (!ufo) createUFO();
 
-  // 吸引時は画面の少し上部中央で静止
+  // 吸引時は画面의 少し上部中央で静止
   ufo.style.transition = 'all 1s ease-in-out';
   ufo.style.left = '50%';
   ufo.style.top = '15%';
@@ -68,29 +67,15 @@ function startSucking() {
 }
 
 function suckElements() {
-  // 全ての要素を取得（UFO自体とその中身は除外）
-  const allElements = Array.from(document.querySelectorAll('body *:not(#ufo-santi):not(#ufo-santi *)'));
-  
-  const targets = allElements.filter(el => {
-    // 既に透明なものや、スクリプト、スタイル、面積がないものは除外
-    if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'NOSCRIPT') return false;
-    const rect = el.getBoundingClientRect();
-    if (rect.width <= 1 || rect.height <= 1) return false;
-    
-    // 子要素にターゲットとなる要素を持っていない（末端の要素）か、特定の重要タグを優先
-    const hasText = el.innerText && el.innerText.trim().length > 0;
-    const isLeaf = el.children.length === 0;
-    const isMedia = el.tagName === 'IMG' || el.tagName === 'VIDEO' || el.tagName === 'SVG' || el.tagName === 'CANVAS';
-    
-    return isLeaf || isMedia || (hasText && el.children.length < 5); // 複雑すぎる親要素は避ける
-  });
-
-  // 下にある要素から順に吸い上げる
-  targets.sort((a, b) => {
-    const rectA = a.getBoundingClientRect();
-    const rectB = b.getBoundingClientRect();
-    return (rectB.top + rectB.height) - (rectA.top + rectA.height);
-  });
+  const targets = Array.from(document.querySelectorAll('body > *:not(#ufo-santi)'))
+    .flatMap(el => {
+      try { return [el, ...Array.from(el.querySelectorAll('*'))]; } catch(e) { return [el]; }
+    })
+    .filter(el => {
+      if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.id === 'ufo-santi') return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
 
   targets.forEach((el, index) => {
     setTimeout(() => {
@@ -105,14 +90,15 @@ function suckElements() {
       const dx = ufoX - elX;
       const dy = ufoY - elY;
 
-      el.style.transition = 'all 0.8s cubic-bezier(0.5, 0, 0.75, 0)';
-      el.style.transform = `translate(${dx}px, ${dy}px) scale(0.1) rotate(${Math.random() * 60 - 30}deg)`;
+      // 回転なし。直線的に加速して消える（シュンッという感じ）
+      el.style.transition = 'all 0.5s cubic-bezier(0.6, -0.28, 0.735, 0.045)';
+      el.style.transform = `translate(${dx}px, ${dy}px) scale(0.01)`;
       el.style.opacity = '0';
       el.style.pointerEvents = 'none';
-    }, index * 40); // 40ms間隔
+    }, index * 8); // さらなる高速回収
   });
 
-  const waitTime = Math.max(targets.length * 40 + 2000, 3000);
+  const waitTime = Math.min(targets.length * 8 + 1500, 7000);
   setTimeout(finishSuck, waitTime);
 }
 
@@ -124,17 +110,51 @@ function finishSuck() {
   overlay.style.cssText = `
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: #000; color: #fff; z-index: 9999999;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-size: 1.5rem; opacity: 0; transition: opacity 1s;
-    font-family: sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Courier New', Courier, monospace;
+    opacity: 0; transition: opacity 2s;
+    user-select: none; cursor: none;
   `;
-  overlay.innerHTML = `
-    <p style="letter-spacing: 0.2rem;">归零处理完成</p>
-    <button id="ufo-reload-btn" style="margin-top:2rem; padding:0.5rem 1.5rem; background:transparent; color:#fff; border:1px solid #555; cursor:pointer;">重构</button>
+  
+  // 穏やかな2色の明滅
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes flicker {
+      0%, 100% { color: #fff; opacity: 1; }
+      50% { color: #666; opacity: 0.8; }
+    }
+    .santi-countdown {
+      font-size: 15vw;
+      letter-spacing: -0.5vw;
+      animation: flicker 2s infinite ease-in-out;
+    }
   `;
+  document.head.appendChild(style);
+
+  const timerEl = document.createElement('div');
+  timerEl.className = 'santi-countdown';
+  overlay.appendChild(timerEl);
   document.body.appendChild(overlay);
+
+  let remaining = 300; // 5分
+
+  function updateDisplay() {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    timerEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:00`;
+  }
+
+  const interval = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(interval);
+      location.reload();
+    }
+    updateDisplay();
+  }, 1000);
+
+  updateDisplay();
   setTimeout(() => overlay.style.opacity = '1', 100);
-  document.getElementById('ufo-reload-btn').onclick = () => location.reload();
 }
 
 chrome.runtime.onMessage.addListener((msg) => {
