@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>三体UFO吸引機</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="popup-container">
+    <h1>🛸 吸引タイマー</h1>
+    <div class="control">
+      <label for="minutes-select">時間設定:</label>
+      <select id="minutes-select">
+        <!-- 1〜59分を動的生成 -->
+      </select>
+    </div>
+    <div id="timer-display" class="timer">--:--</div>
+    <div class="buttons">
+      <button id="start-btn">開始</button>
+      <button id="stop-btn">停止</button>
+      <button id="suck-now-btn">いますぐ吸い上げる</button>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

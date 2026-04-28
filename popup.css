@@ -1,0 +1,38 @@
+body {
+  width: 250px;
+  padding: 16px;
+  font-family: sans-serif;
+  background: #111;
+  color: #eee;
+}
+h1 {
+  font-size: 1.2em;
+  text-align: center;
+}
+.control {
+  margin: 10px 0;
+}
+#minutes-select {
+  width: 100%;
+  padding: 4px;
+}
+.timer {
+  font-size: 2em;
+  text-align: center;
+  margin: 10px 0;
+}
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+button {
+  padding: 8px;
+  font-size: 1em;
+  cursor: pointer;
+}
+#suck-now-btn {
+  background: #b33;
+  color: white;
+}
