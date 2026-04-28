@@ -1,4 +1,4 @@
-console.log('🛸 三体UFO吸引機: 高度文明モード');
+console.log('🛸 三体UFO吸引機: 稼働開始');
 
 let ufo = null;
 let isFlying = false;
@@ -9,6 +9,7 @@ function createUFO() {
   if (ufo) return;
   ufo = document.createElement('img');
   ufo.src = chrome.runtime.getURL('ufo.png');
+  ufo.id = 'ufo-santi';
   ufo.style.cssText = `
     position: fixed;
     top: 20%;
@@ -16,12 +17,11 @@ function createUFO() {
     transform: translate(-50%, -50%);
     width: 100px;
     height: auto;
-    z-index: 999999;
+    z-index: 2147483647;
     pointer-events: none;
     transition: top 2s ease-in-out, left 2s ease-in-out;
   `;
-  ufo.id = 'ufo-santi';
-  document.body.appendChild(ufo);
+  document.documentElement.appendChild(ufo);
 }
 
 function startFlying() {
@@ -56,24 +56,23 @@ function startSucking() {
 }
 
 function suckElements() {
-  // リファクタリング：効率的な要素抽出
-  // Wikipedia等の巨大なサイトでも耐えられるよう、まずはボディ直下の要素から探索
-  const rawElements = Array.from(document.querySelectorAll('body > *:not(#ufo-santi), body > *:not(#ufo-santi) p, body > *:not(#ufo-santi) li, body > *:not(#ufo-santi) img, body > *:not(#ufo-santi) h1, body > *:not(#ufo-santi) h2, body > *:not(#ufo-santi) h3'));
-  
-  const targets = rawElements
+  // 安定性のためのリファクタリング:
+  // 1. セレクタをシンプルにし、CSPに触れるstyleタグを排除。
+  // 2. 処理対象を「目に見える主要な要素」に絞り、最大500個に制限。
+  const targets = Array.from(document.querySelectorAll('p, li, img, h1, h2, h3, h4, h5, h6, pre, code, blockquote, input, button, a'))
     .filter(el => {
       try {
+        if (el.closest('#ufo-santi')) return false;
         const rect = el.getBoundingClientRect();
-        return rect.width > 2 && rect.height > 2 && rect.top < window.innerHeight * 2; // 画面外すぎないもの
+        return rect.width > 2 && rect.height > 2 && rect.top < window.innerHeight * 1.5;
       } catch (e) { return false; }
     })
     .sort((a, b) => {
-      // 下から順に吸い上げるためのソート
       const rA = a.getBoundingClientRect();
       const rB = b.getBoundingClientRect();
       return (rB.top + rB.height) - (rA.top + rA.height);
     })
-    .slice(0, 800); // 最大800個に制限してパフォーマンスを確保
+    .slice(0, 500);
 
   targets.forEach((el, index) => {
     setTimeout(() => {
@@ -81,30 +80,25 @@ function suckElements() {
       try {
         const ufoRect = ufo.getBoundingClientRect();
         const elRect = el.getBoundingClientRect();
-        
         const ufoX = ufoRect.left + ufoRect.width / 2;
         const ufoY = ufoRect.top + ufoRect.height / 2;
         const elX = elRect.left + elRect.width / 2;
         const elY = elRect.top + elRect.height / 2;
 
-        const dx = ufoX - elX;
-        const dy = ufoY - elY;
-
-        // transformを効かせるためにinline要素を書き換える
-        const style = window.getComputedStyle(el);
-        if (style.display === 'inline') {
+        // transformを有効にするための処理
+        if (window.getComputedStyle(el).display === 'inline') {
           el.style.display = 'inline-block';
         }
 
         el.style.transition = 'all 0.6s cubic-bezier(0.6, -0.2, 0.8, 0.05)';
-        el.style.transform = `translate(${dx}px, ${dy}px) scale(0.01) rotate(${Math.random() * 40 - 20}deg)`;
+        el.style.transform = `translate(${ufoX - elX}px, ${ufoY - elY}px) scale(0.01) rotate(${Math.random() * 40 - 20}deg)`;
         el.style.opacity = '0';
         el.style.pointerEvents = 'none';
-      } catch (e) { /* ignore elements that might have been removed */ }
-    }, index * 10); // 10ms間隔でズズズーーー
+      } catch (e) { }
+    }, index * 15);
   });
 
-  const waitTime = Math.max(targets.length * 10 + 2000, 3500);
+  const waitTime = Math.max(targets.length * 15 + 2000, 3000);
   setTimeout(finishSuck, waitTime);
 }
 
@@ -115,31 +109,31 @@ function finishSuck() {
   overlay.id = 'ufo-break-overlay';
   overlay.style.cssText = `
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: #000; color: #fff; z-index: 9999999;
+    background: #000; color: #fff; z-index: 2147483647;
     display: flex; align-items: center; justify-content: center;
     font-family: 'Courier New', Courier, monospace;
     opacity: 0; transition: opacity 2s;
     user-select: none; cursor: none;
   `;
   
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes flicker {
-      0%, 100% { color: #fff; opacity: 1; }
-      50% { color: #666; opacity: 0.8; }
-    }
-    .santi-countdown {
-      font-size: 15vw;
-      letter-spacing: -0.5vw;
-      animation: flicker 2s infinite ease-in-out;
-    }
-  `;
-  document.head.appendChild(style);
-
   const timerEl = document.createElement('div');
-  timerEl.className = 'santi-countdown';
+  timerEl.style.cssText = `
+    font-size: 15vw;
+    letter-spacing: -0.5vw;
+  `;
   overlay.appendChild(timerEl);
-  document.body.appendChild(overlay);
+  document.documentElement.appendChild(overlay);
+
+  // Web Animations APIを使用してCSPエラーを回避
+  timerEl.animate([
+    { color: '#fff', opacity: 1 },
+    { color: '#666', opacity: 0.8 },
+    { color: '#fff', opacity: 1 }
+  ], {
+    duration: 2000,
+    iterations: Infinity,
+    easing: 'ease-in-out'
+  });
 
   let remaining = 300; 
 
