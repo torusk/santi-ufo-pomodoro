@@ -24,24 +24,18 @@ function createUFO() {
   document.body.appendChild(ufo);
 }
 
-// 偵察飛行：ランダムな点へ等速で移動し、数秒停止する
 function startFlying() {
   if (isFlying || isSucking) return;
   isFlying = true;
 
   function moveToNextPoint() {
     if (!ufo || !isFlying || isSucking) return;
-    
-    const x = Math.random() * 80 + 10; // 10% ~ 90%
+    const x = Math.random() * 80 + 10;
     const y = Math.random() * 80 + 10;
-    
     ufo.style.left = `${x}%`;
     ufo.style.top = `${y}%`;
-    
-    // 2〜4秒ごとに次の地点へ
     flightTimeout = setTimeout(moveToNextPoint, 3000 + Math.random() * 2000);
   }
-  
   moveToNextPoint();
 }
 
@@ -50,33 +44,39 @@ function stopFlying() {
   if (flightTimeout) clearTimeout(flightTimeout);
 }
 
-// 吸引：回転させず、無機質に高速回収
 function startSucking() {
   if (isSucking) return;
   isSucking = true;
   stopFlying();
-
   if (!ufo) createUFO();
-
-  // 吸引時は画面의 少し上部中央で静止
   ufo.style.transition = 'all 1s ease-in-out';
   ufo.style.left = '50%';
   ufo.style.top = '15%';
-
   setTimeout(suckElements, 1200);
 }
 
 function suckElements() {
-  const targets = Array.from(document.querySelectorAll('body > *:not(#ufo-santi)'))
-    .flatMap(el => {
-      try { return [el, ...Array.from(el.querySelectorAll('*'))]; } catch(e) { return [el]; }
-    })
-    .filter(el => {
-      if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.id === 'ufo-santi') return false;
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    });
+  // Wikipedia等でも確実に動作させるため、意味のある末端要素（文字・画像等）を抽出
+  const allElements = Array.from(document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, img, li, button, input, pre, blockquote, dt, dd, span, a'));
+  
+  const targets = allElements.filter(el => {
+    if (el.closest('#ufo-santi')) return false;
+    const rect = el.getBoundingClientRect();
+    // 画面内にあり、かつ実体があるもの
+    if (rect.width <= 1 || rect.height <= 1) return false;
+    
+    // 自分の直下に子要素が少ない（＝末端に近い）ものだけを対象にすることで「ズズズ」感を出す
+    return el.children.length <= 2;
+  });
 
+  // 下にある要素から順にソート（剥がれていく演出）
+  targets.sort((a, b) => {
+    const rectA = a.getBoundingClientRect();
+    const rectB = b.getBoundingClientRect();
+    return (rectB.top + rectB.height) - (rectA.top + rectA.height);
+  });
+
+  // 15ms間隔でズズズーーーっと吸い上げる
   targets.forEach((el, index) => {
     setTimeout(() => {
       if (!ufo) return;
@@ -90,15 +90,14 @@ function suckElements() {
       const dx = ufoX - elX;
       const dy = ufoY - elY;
 
-      // 回転なし。直線的に加速して消える（シュンッという感じ）
-      el.style.transition = 'all 0.5s cubic-bezier(0.6, -0.28, 0.735, 0.045)';
-      el.style.transform = `translate(${dx}px, ${dy}px) scale(0.01)`;
+      el.style.transition = 'all 0.6s cubic-bezier(0.6, -0.2, 0.8, 0.05)';
+      el.style.transform = `translate(${dx}px, ${dy}px) scale(0.01) rotate(${Math.random() * 30 - 15}deg)`;
       el.style.opacity = '0';
       el.style.pointerEvents = 'none';
-    }, index * 8); // さらなる高速回収
+    }, index * 15); 
   });
 
-  const waitTime = Math.min(targets.length * 8 + 1500, 7000);
+  const waitTime = Math.max(targets.length * 15 + 2000, 4000);
   setTimeout(finishSuck, waitTime);
 }
 
@@ -116,7 +115,6 @@ function finishSuck() {
     user-select: none; cursor: none;
   `;
   
-  // 穏やかな2色の明滅
   const style = document.createElement('style');
   style.textContent = `
     @keyframes flicker {
@@ -136,7 +134,7 @@ function finishSuck() {
   overlay.appendChild(timerEl);
   document.body.appendChild(overlay);
 
-  let remaining = 300; // 5分
+  let remaining = 300; 
 
   function updateDisplay() {
     const m = Math.floor(remaining / 60);
