@@ -56,23 +56,31 @@ function startSucking() {
 }
 
 function suckElements() {
-  // 安定性のためのリファクタリング:
-  // 1. セレクタをシンプルにし、CSPに触れるstyleタグを排除。
-  // 2. 処理対象を「目に見える主要な要素」に絞り、最大500個に制限。
+  // 安定して「ズズズ」感を出すための要素選択
   const targets = Array.from(document.querySelectorAll('p, li, img, h1, h2, h3, h4, h5, h6, pre, code, blockquote, input, button, a'))
     .filter(el => {
       try {
         if (el.closest('#ufo-santi')) return false;
         const rect = el.getBoundingClientRect();
+        // 画面内にあり、かつ実体があるもの
         return rect.width > 2 && rect.height > 2 && rect.top < window.innerHeight * 1.5;
       } catch (e) { return false; }
     })
     .sort((a, b) => {
       const rA = a.getBoundingClientRect();
       const rB = b.getBoundingClientRect();
+      // 下から順に
       return (rB.top + rB.height) - (rA.top + rA.height);
     })
     .slice(0, 500);
+
+  if (targets.length === 0) {
+    finishSuck();
+    return;
+  }
+
+  const interval = 30; // 15ms -> 30ms に延長（よりゆっくり）
+  const duration = 800; // 0.6s -> 0.8s に延長（ゆったり吸い込まれる）
 
   targets.forEach((el, index) => {
     setTimeout(() => {
@@ -85,21 +93,21 @@ function suckElements() {
         const elX = elRect.left + elRect.width / 2;
         const elY = elRect.top + elRect.height / 2;
 
-        // transformを有効にするための処理
         if (window.getComputedStyle(el).display === 'inline') {
           el.style.display = 'inline-block';
         }
 
-        el.style.transition = 'all 0.6s cubic-bezier(0.6, -0.2, 0.8, 0.05)';
+        el.style.transition = `all ${duration}ms cubic-bezier(0.6, -0.2, 0.8, 0.05)`;
         el.style.transform = `translate(${ufoX - elX}px, ${ufoY - elY}px) scale(0.01) rotate(${Math.random() * 40 - 20}deg)`;
         el.style.opacity = '0';
         el.style.pointerEvents = 'none';
       } catch (e) { }
-    }, index * 15);
+    }, index * interval);
   });
 
-  const waitTime = Math.max(targets.length * 15 + 2000, 3000);
-  setTimeout(finishSuck, waitTime);
+  // 全ての要素が吸い込まれ終わるのを正確に待つ
+  const totalWaitTime = (targets.length * interval) + duration + 500;
+  setTimeout(finishSuck, totalWaitTime);
 }
 
 function finishSuck() {
@@ -124,7 +132,6 @@ function finishSuck() {
   overlay.appendChild(timerEl);
   document.documentElement.appendChild(overlay);
 
-  // Web Animations APIを使用してCSPエラーを回避
   timerEl.animate([
     { color: '#fff', opacity: 1 },
     { color: '#666', opacity: 0.8 },
@@ -143,10 +150,10 @@ function finishSuck() {
     timerEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:00`;
   }
 
-  const interval = setInterval(() => {
+  const intervalTimer = setInterval(() => {
     remaining--;
     if (remaining <= 0) {
-      clearInterval(interval);
+      clearInterval(intervalTimer);
       location.reload();
     }
     updateDisplay();
