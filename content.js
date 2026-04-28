@@ -56,48 +56,55 @@ function startSucking() {
 }
 
 function suckElements() {
-  // Wikipedia等でも確実に動作させるため、意味のある末端要素（文字・画像等）を抽出
-  const allElements = Array.from(document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, img, li, button, input, pre, blockquote, dt, dd, span, a'));
+  // リファクタリング：効率的な要素抽出
+  // Wikipedia等の巨大なサイトでも耐えられるよう、まずはボディ直下の要素から探索
+  const rawElements = Array.from(document.querySelectorAll('body > *:not(#ufo-santi), body > *:not(#ufo-santi) p, body > *:not(#ufo-santi) li, body > *:not(#ufo-santi) img, body > *:not(#ufo-santi) h1, body > *:not(#ufo-santi) h2, body > *:not(#ufo-santi) h3'));
   
-  const targets = allElements.filter(el => {
-    if (el.closest('#ufo-santi')) return false;
-    const rect = el.getBoundingClientRect();
-    // 画面内にあり、かつ実体があるもの
-    if (rect.width <= 1 || rect.height <= 1) return false;
-    
-    // 自分の直下に子要素が少ない（＝末端に近い）ものだけを対象にすることで「ズズズ」感を出す
-    return el.children.length <= 2;
-  });
+  const targets = rawElements
+    .filter(el => {
+      try {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 2 && rect.height > 2 && rect.top < window.innerHeight * 2; // 画面外すぎないもの
+      } catch (e) { return false; }
+    })
+    .sort((a, b) => {
+      // 下から順に吸い上げるためのソート
+      const rA = a.getBoundingClientRect();
+      const rB = b.getBoundingClientRect();
+      return (rB.top + rB.height) - (rA.top + rA.height);
+    })
+    .slice(0, 800); // 最大800個に制限してパフォーマンスを確保
 
-  // 下にある要素から順にソート（剥がれていく演出）
-  targets.sort((a, b) => {
-    const rectA = a.getBoundingClientRect();
-    const rectB = b.getBoundingClientRect();
-    return (rectB.top + rectB.height) - (rectA.top + rectA.height);
-  });
-
-  // 15ms間隔でズズズーーーっと吸い上げる
   targets.forEach((el, index) => {
     setTimeout(() => {
       if (!ufo) return;
-      const ufoRect = ufo.getBoundingClientRect();
-      const ufoX = ufoRect.left + ufoRect.width / 2;
-      const ufoY = ufoRect.top + ufoRect.height / 2;
-      const elRect = el.getBoundingClientRect();
-      const elX = elRect.left + elRect.width / 2;
-      const elY = elRect.top + elRect.height / 2;
+      try {
+        const ufoRect = ufo.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        
+        const ufoX = ufoRect.left + ufoRect.width / 2;
+        const ufoY = ufoRect.top + ufoRect.height / 2;
+        const elX = elRect.left + elRect.width / 2;
+        const elY = elRect.top + elRect.height / 2;
 
-      const dx = ufoX - elX;
-      const dy = ufoY - elY;
+        const dx = ufoX - elX;
+        const dy = ufoY - elY;
 
-      el.style.transition = 'all 0.6s cubic-bezier(0.6, -0.2, 0.8, 0.05)';
-      el.style.transform = `translate(${dx}px, ${dy}px) scale(0.01) rotate(${Math.random() * 30 - 15}deg)`;
-      el.style.opacity = '0';
-      el.style.pointerEvents = 'none';
-    }, index * 15); 
+        // transformを効かせるためにinline要素を書き換える
+        const style = window.getComputedStyle(el);
+        if (style.display === 'inline') {
+          el.style.display = 'inline-block';
+        }
+
+        el.style.transition = 'all 0.6s cubic-bezier(0.6, -0.2, 0.8, 0.05)';
+        el.style.transform = `translate(${dx}px, ${dy}px) scale(0.01) rotate(${Math.random() * 40 - 20}deg)`;
+        el.style.opacity = '0';
+        el.style.pointerEvents = 'none';
+      } catch (e) { /* ignore elements that might have been removed */ }
+    }, index * 10); // 10ms間隔でズズズーーー
   });
 
-  const waitTime = Math.max(targets.length * 15 + 2000, 4000);
+  const waitTime = Math.max(targets.length * 10 + 2000, 3500);
   setTimeout(finishSuck, waitTime);
 }
 
